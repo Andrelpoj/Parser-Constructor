@@ -822,11 +822,11 @@ int main(int argc, char *argv[]) {
 
     char rules_file[255], token_file[255];
 
-    if(argc == 3) {
-        sprintf(token_file,"%s",argv[1]);
-        sprintf(rules_file,"%s",argv[2]);
-        printf("%s ",token_file);
-        printf("%s\n",rules_file);
+    if(argc == 3){
+        sprintf(rules_file,"%s",argv[1]);
+        sprintf(token_file,"%s",argv[2]);
+        printf("%s ",rules_file);
+        printf("%s\n",token_file);
     }
     else{
         printf("usage: %s token_file [rules_file]\n", argv[0]);
