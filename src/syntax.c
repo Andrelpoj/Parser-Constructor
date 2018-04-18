@@ -815,6 +815,27 @@ void createTable(char* orig){
     fclose(arq);
 }
 
+void printTree(){
+    Node *s = syntaxTree, *p;
+    while(s){
+        p = s;
+        while(p){
+            printf("%s ",p->content);
+            p = p->sibling;
+        }
+        printf("\n");
+        s = s->child;
+    }
+}
+
+void addSibling(Node *node, Node* sibling){
+    if(!node) return;
+    while(node->sibling){
+        node = node->sibling;
+    }
+    node->sibling = sibling;
+}
+
 int main(int argc, char *argv[]) {
     endSymbol = newToken(ENDSYMBOL,ENDSYMBOL);
     char epsilonStr[10] = "epsilon";
@@ -851,6 +872,7 @@ int main(int argc, char *argv[]) {
     int i, j, k, ruleIndex, flag;
 	Token *currentToken, *t;
 	TokenNode *tokenNode;
+    Node *tempNode;
     R_LIST *r;
     T_LIST *rule, *aux1, *aux2;
 
@@ -873,21 +895,40 @@ int main(int argc, char *argv[]) {
 
 		tokenNode = pop(&stack);
 		if( isTerminal(tokenNode->token->type) && (strcmp(tokenNode->token->type,currentToken->type)==0) ){
-			tokenNode->node->child = newNode(currentToken->type);
+			if(!tokenNode->node->child){
+                tokenNode->node->child = newNode(currentToken->value);
+            }
+            else{
+                addSibling(tokenNode->node->child,newNode(currentToken->value));
+            }
+            printTree();
 
 			//Treats the special case of id and num because they're 'fake' terminals
 			if( (strcmp(currentToken->type,"id")==0) || (strcmp(currentToken->type,"num")==0) ){
 				tokenNode->node->child->child = newNode(currentToken->value);
 			}
 
-			free(tokenNode);
+			//free(tokenNode);
 			flag = fscanf(arq,"%s %s\n",&type, &value);
 		}
 		else{
 			if( isNonTerminal(tokenNode->token->type) && isTerminal(currentToken->type)){
-				i = findNonTerminalIndex(tokenNode->token->type);
+                i = findNonTerminalIndex(tokenNode->token->type);
 				j = findTerminalIndex(currentToken->type);
 				ruleIndex = parsingTable[i][j];
+
+                //Adds the NT node to the tree
+                if(!tokenNode->node->child){
+                    tokenNode->node->child = newNode(currentToken->value);
+                }
+                else{
+                    tempNode = newNode(tokenNode->token->type);
+                    addSibling(tokenNode->node->child,tempNode);
+                }
+
+                //updates father tree reference
+                //free(tokenNode->node);
+                //tokenNode->node = tempNode;
 
 				//There's no rule that satisfies it
 				if(ruleIndex==0){
@@ -923,7 +964,7 @@ int main(int argc, char *argv[]) {
     				}
                 }
 
-				free(tokenNode);
+				//free(tokenNode);
 			}
 			else{
 				printf("Type:%s\n",currentToken->type);
@@ -986,7 +1027,7 @@ int main(int argc, char *argv[]) {
     				}
                 }
 
-				free(tokenNode);
+				//free(tokenNode);
                 tokenNode = pop(&stack);
             }
             if(isEmpty(stack)){
