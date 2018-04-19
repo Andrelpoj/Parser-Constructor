@@ -821,23 +821,52 @@ void createTable(char* orig){
 }
 
 void printTree(Node *s){
-    //fazer busca em largura
+    N_LIST *list1 = (N_LIST*) malloc(sizeof(N_LIST));
+    list1->node = s;
+    list1->next = NULL;
 
-    N_LIST *list = (N_LIST*) malloc(sizeoff(N_LIST));
-    list->node = s;
-    list->next = NULL;
-    Node *p;
+    N_LIST *list2 = NULL;
 
-    while(list){
-        p = s;
-        while(p){
-            printf("%s ",p->content);
-            p = p->sibling;
+    Node *node;
+    N_LIST *aux1, *aux2;
+
+    while(list1){
+        node = list1->node;
+        printf("%s ",node->content);
+
+        //adds children to list2
+        node = node->child;
+        while(node){
+            if(!list2){
+                list2 = (N_LIST*) malloc(sizeof(N_LIST));
+                list2->node = node;
+                list2->next = NULL;
+            }
+            else{
+                aux2 = list2;
+                while(aux2->next){
+                    aux2 = aux2->next;
+                }
+                aux2->next = (N_LIST*) malloc(sizeof(N_LIST));
+                aux2->next->node = node;
+                aux2->next->next = NULL;
+            }
+            node = node->sibling;
         }
-        printf("\n");
-        s = s->child;
-    }
 
+        aux1 = list1;
+        list1 = list1->next;
+        free(aux1);
+
+        //checks if list1 is empty and updates
+        if(!list1){
+            list1 = list2;
+            list2 = NULL;
+            //marks the end of the tree level
+            printf("\n");
+        }
+    }
+    printf("\n");
 }
 
 void addSibling(Node *node, Node* sibling){
@@ -896,16 +925,17 @@ int main(int argc, char *argv[]) {
 
 		tokenNode = pop(&stack);
 		if( isTerminal(tokenNode->token->type) && (strcmp(tokenNode->token->type,currentToken->type)==0) ){
-			if(!tokenNode->node->child){
-                tokenNode->node->child = newNode(currentToken->type);
+            tempNode = newNode(currentToken->type);
+            if(!tokenNode->node->child){
+                tokenNode->node->child = tempNode;
             }
             else{
-                addSibling(tokenNode->node->child,newNode(currentToken->type));
+                addSibling(tokenNode->node->child,tempNode);
             }
 
 			//Treats the special case of id and num because they're 'fake' terminals
 			if( (strcmp(currentToken->type,"id")==0) || (strcmp(currentToken->type,"num")==0) ){
-				tokenNode->node->child->child = newNode(currentToken->value);
+				tempNode->child = newNode(currentToken->value);
 			}
 
 			//free(tokenNode);
@@ -956,7 +986,7 @@ int main(int argc, char *argv[]) {
 				}
 				t = newToken(aux2->token->value,aux2->token->type);
                 if(strcmp(epsilonStr,t->type)!=0){ //doesn't include epsilon in the pile
-    				push(&stack,t,tokenNode->node);
+    				push(&stack,t,father);
     				while(rule->next!=aux2){
     					while(aux1->next!=aux2){
     						aux1 = aux1->next;
@@ -968,7 +998,6 @@ int main(int argc, char *argv[]) {
     					aux1 = rule;
     				}
                 }
-
 				//free(tokenNode);
 			}
 			else{
@@ -983,7 +1012,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		free(currentToken);
-        printTree();
+        printTree(syntaxTree);
 	}
 
 	//if( (flag==EOF) && isEmpty(stack) ){
@@ -1053,6 +1082,6 @@ int main(int argc, char *argv[]) {
     fclose(arq);
 
 
-    printTree();
+    printTree(syntaxTree);
 
 }
