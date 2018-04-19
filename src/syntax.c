@@ -11,6 +11,11 @@ typedef struct node {
     struct node *child, *sibling;
 }Node;
 
+typedef struct NodeList {
+    Node* node;
+    struct NodeList* next;
+}N_LIST;
+
 typedef struct{
     char value[LMAXTOKEN];
     char type[LMAXTOKEN];
@@ -192,8 +197,8 @@ void push(T_STACK** root, Token* t, Node* n)
     *root = stackNode;
 }
 
-TokenNode* pop(T_STACK** root)
-{
+
+TokenNode* pop(T_STACK** root){
     if (isEmpty(*root)){
         return NULL;
         //Token t;
@@ -815,9 +820,15 @@ void createTable(char* orig){
     fclose(arq);
 }
 
-void printTree(){
-    Node *s = syntaxTree, *p;
-    while(s){
+void printTree(Node *s){
+    //fazer busca em largura
+
+    N_LIST *list = (N_LIST*) malloc(sizeoff(N_LIST));
+    list->node = s;
+    list->next = NULL;
+    Node *p;
+
+    while(list){
         p = s;
         while(p){
             printf("%s ",p->content);
@@ -826,6 +837,7 @@ void printTree(){
         printf("\n");
         s = s->child;
     }
+
 }
 
 void addSibling(Node *node, Node* sibling){
@@ -850,7 +862,7 @@ int main(int argc, char *argv[]) {
         printf("%s\n",token_file);
     }
     else{
-        printf("usage: %s token_file [rules_file]\n", argv[0]);
+        printf("usage: %s rules_file token_file\n", argv[0]);
         return 0;
     }
 
@@ -877,18 +889,7 @@ int main(int argc, char *argv[]) {
     T_LIST *rule, *aux1, *aux2;
 
     flag = fscanf(arq,"%s %s\n",&type, &value);
-	//while( fgets(&temp,LMAXTOKEN,arq) && !(isEmpty(stack))){
 	while( (flag!=EOF) &&  !(isEmpty(stack)) ){
-		//Gets the current entrance Token
-		//printf("%s\n",temp);
-
-        /*
-		tkn = strtok(temp," ");
-        sprintf(type,"%s",tkn);
-     	tkn = strtok(NULL," \n\t\r");
-        sprintf(value,"%s",tkn);
-        currentToken = newToken(type,value);
-		*/
 
 		currentToken = newToken(value,type);
 		printf("Type: %s, Value: %s\n",type, value);
@@ -896,12 +897,11 @@ int main(int argc, char *argv[]) {
 		tokenNode = pop(&stack);
 		if( isTerminal(tokenNode->token->type) && (strcmp(tokenNode->token->type,currentToken->type)==0) ){
 			if(!tokenNode->node->child){
-                tokenNode->node->child = newNode(currentToken->value);
+                tokenNode->node->child = newNode(currentToken->type);
             }
             else{
-                addSibling(tokenNode->node->child,newNode(currentToken->value));
+                addSibling(tokenNode->node->child,newNode(currentToken->type));
             }
-            printTree();
 
 			//Treats the special case of id and num because they're 'fake' terminals
 			if( (strcmp(currentToken->type,"id")==0) || (strcmp(currentToken->type,"num")==0) ){
@@ -917,18 +917,23 @@ int main(int argc, char *argv[]) {
 				j = findTerminalIndex(currentToken->type);
 				ruleIndex = parsingTable[i][j];
 
+                Node *father = tokenNode->node;
+
                 //Adds the NT node to the tree
-                if(!tokenNode->node->child){
-                    tokenNode->node->child = newNode(currentToken->value);
-                }
-                else{
-                    tempNode = newNode(tokenNode->token->type);
-                    addSibling(tokenNode->node->child,tempNode);
+                //Exception: the first NT has already been added
+                if(!tkncmp(initial,tokenNode->token)){
+                    if(!father->child){
+                        father->child = newNode(currentToken->value);
+                    }
+                    else{
+                        tempNode = newNode(tokenNode->token->type);
+                        addSibling(father->child,tempNode);
+                    }
+
+                    //updates father tree reference
+                    father = tempNode;
                 }
 
-                //updates father tree reference
-                //free(tokenNode->node);
-                //tokenNode->node = tempNode;
 
 				//There's no rule that satisfies it
 				if(ruleIndex==0){
@@ -957,7 +962,7 @@ int main(int argc, char *argv[]) {
     						aux1 = aux1->next;
     					}
     					t = newToken(aux1->token->value,aux1->token->type);
-    					push(&stack,t,tokenNode->node);
+    					push(&stack,t,father);
 
     					aux2 = aux1;
     					aux1 = rule;
@@ -978,6 +983,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		free(currentToken);
+        printTree();
 	}
 
 	//if( (flag==EOF) && isEmpty(stack) ){
@@ -1045,5 +1051,8 @@ int main(int argc, char *argv[]) {
 	}
 
     fclose(arq);
+
+
+    printTree();
 
 }
