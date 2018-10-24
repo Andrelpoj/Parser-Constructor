@@ -660,12 +660,12 @@ void createTable(char* orig){
         sprintf(TERMINALS[i],"%s","");
     }
 
-    fscanf(arq,"%s\n",&temp);
+    fscanf(arq,"%s\n", (char *) &temp);
     i = 0;
     while(strcmp(temp,var)){
         //printf("%s\n",temp);
         sprintf(TERMINALS[i],"%s",temp);
-        fscanf(arq,"%s\n",&temp);
+        fscanf(arq,"%s\n", (char *) &temp);
         i++;
     }
 
@@ -687,12 +687,12 @@ void createTable(char* orig){
     }
 
     sprintf(var,"%s","RULES");
-    fscanf(arq,"%s\n",&temp);
+    fscanf(arq,"%s\n", (char *) &temp);
     i = 0;
     while(strcmp(temp,var)){
         //printf("%s\n",temp);
         sprintf(NONTERMINALS[i],"%s",temp);
-        fscanf(arq,"%s\n",&temp);
+        fscanf(arq,"%s\n", (char *) &temp);
         i++;
     }
     quant_NT = i;
@@ -807,6 +807,11 @@ void createTable(char* orig){
 
     printf("\n\n\n");
     printf("PARSING TABLE\n*****************\n");
+    for(i=0;i<quant_T;i++){
+        printf("%s ",TERMINALS[i]);
+    }
+    printf("\n");
+
     for(i=0;i<quant_NT;i++){
         printf("%s: ",NONTERMINALS[i]);
         for(j=0;j<quant_T;j++){
@@ -877,23 +882,10 @@ void addSibling(Node *node, Node* sibling){
     node->sibling = sibling;
 }
 
-int main(int argc, char *argv[]) {
+int generateSyntaxTree(char *rules_file,char *token_file) {
     endSymbol = newToken(ENDSYMBOL,ENDSYMBOL);
     char epsilonStr[10] = "epsilon";
     epsilon = newToken("epsilon","epsilon");
-
-    char rules_file[255], token_file[255];
-
-    if(argc == 3){
-        sprintf(rules_file,"%s",argv[1]);
-        sprintf(token_file,"%s",argv[2]);
-        printf("%s ",rules_file);
-        printf("%s\n",token_file);
-    }
-    else{
-        printf("usage: %s rules_file token_file\n", argv[0]);
-        return 0;
-    }
 
     //Create First, Follow and Parsing Tables
     createTable(rules_file);
@@ -904,7 +896,7 @@ int main(int argc, char *argv[]) {
 
     FILE *arq = fopen(token_file,"r");
     if(arq == NULL){
-        printf("error while opening file\n");
+        printf("error while opening file!\n");
         return 1;
     }
 
@@ -917,11 +909,11 @@ int main(int argc, char *argv[]) {
     R_LIST *r;
     T_LIST *rule, *aux1, *aux2;
 
-    flag = fscanf(arq,"%s %s\n",&type, &value);
+    flag = fscanf(arq,"%s %s\n", (char *) &type, (char *) &value);
 	while( (flag!=EOF) &&  !(isEmpty(stack)) ){
 
 		currentToken = newToken(value,type);
-		printf("Type: %s, Value: %s\n",type, value);
+		//printf("Type: %s, Value: %s\n",type, value);
 
 		tokenNode = pop(&stack);
 		if( isTerminal(tokenNode->token->type) && (strcmp(tokenNode->token->type,currentToken->type)==0) ){
@@ -939,35 +931,36 @@ int main(int argc, char *argv[]) {
 			}
 
 			//free(tokenNode);
-			flag = fscanf(arq,"%s %s\n",&type, &value);
+			flag = fscanf(arq,"%s %s\n",(char*) &type, (char*) &value);
 		}
 		else{
-			if( isNonTerminal(tokenNode->token->type) && isTerminal(currentToken->type)){
+		    if( isNonTerminal(tokenNode->token->type) && isTerminal(currentToken->type)){
+                //printf("NT:%s T:%s \n",tokenNode->token->type,currentToken->value);
                 i = findNonTerminalIndex(tokenNode->token->type);
-				j = findTerminalIndex(currentToken->type);
-				ruleIndex = parsingTable[i][j];
-
+                j = findTerminalIndex(currentToken->type);
+		        ruleIndex = parsingTable[i][j];
                 Node *father = tokenNode->node;
+                //printf("Father: %s\n",father->content);
 
                 //Adds the NT node to the tree
                 //Exception: the first NT has already been added
                 if(!tkncmp(initial,tokenNode->token)){
                     if(!father->child){
-                        father->child = newNode(currentToken->value);
+                        father->child = newNode(tokenNode->token->type);
+                        //updates father tree reference
+                        father = father->child;
                     }
                     else{
                         tempNode = newNode(tokenNode->token->type);
                         addSibling(father->child,tempNode);
+                        //updates father tree reference
+                        father = tempNode;
                     }
-
-                    //updates father tree reference
-                    father = tempNode;
                 }
-
 
 				//There's no rule that satisfies it
 				if(ruleIndex==0){
-					printf("Error\n");
+					printf("There's no rule that satisfies it\nStack:%s CurrentToken:%s\n",tokenNode->token->type,currentToken->type);
 					return 1;
 				}
 
@@ -997,25 +990,23 @@ int main(int argc, char *argv[]) {
     					aux2 = aux1;
     					aux1 = rule;
     				}
-                }
+        }
 				//free(tokenNode);
 			}
 			else{
-				printf("Type:%s\n",currentToken->type);
+                printf("Type:%s\n",currentToken->type);
                 printf("Value:%s\n",currentToken->value);
-
                 printf("********\n");
                 printf("Type:%s\n",tokenNode->token->type);
-
 				printf("Error\n");
 				return 1;
 			}
 		}
 		free(currentToken);
-        printTree(syntaxTree);
+        //printTree(syntaxTree);
 	}
 
-	//if( (flag==EOF) && isEmpty(stack) ){
+    //if( (flag==EOF) && isEmpty(stack) ){
     if( (flag==EOF)){
         if(isEmpty(stack)){
             printf("Accepted\n");
@@ -1023,21 +1014,36 @@ int main(int argc, char *argv[]) {
         else{
             tokenNode = pop(&stack);
             while(tokenNode && isNonTerminal(tokenNode->token->type)){
-            //if(isNonTerminal(tokenNode->token->type)){
+                //if(isNonTerminal(tokenNode->token->type)){
                 i = findNonTerminalIndex(tokenNode->token->type);
                 j = findTerminalIndex(epsilonStr);
                 ruleIndex = parsingTable[i][j];
 
+                Node *father = tokenNode->node;
+                //Adds the NT node to the tree
+                //Exception: the first NT has already been added
+                if(!tkncmp(initial,tokenNode->token)){
+                    if(!father->child){
+                        father->child = newNode(currentToken->value);
+                    }
+                    else{
+                        tempNode = newNode(tokenNode->token->type);
+                        addSibling(father->child,tempNode);
+                    }
+                    //updates father tree reference
+                    father = tempNode;
+                }
+
 				//There's no rule that satisfies it
-				if(ruleIndex==0){
-					printf("Error\n");
+                if(ruleIndex==0){
+                    printf("Error\n");
 					return 1;
 				}
 
-				//gets the production rule
+  				//gets the production rule
 				r = RULES;
 				for(k=1;k<ruleIndex;k++){
-					r = r->next;
+			        r = r->next;
 				}
 				rule = r->rule;
 
@@ -1061,27 +1067,43 @@ int main(int argc, char *argv[]) {
     					aux1 = rule;
     				}
                 }
-
 				//free(tokenNode);
                 tokenNode = pop(&stack);
             }
+
             if(isEmpty(stack)){
                 printf("Accepted\n");
             }
             else{
                 printf("Error\n");
+                printf("Stack isn't empty\nStack:%s\n",stack->token->type);
                 return 1;
             }
         }
 	}
 	else{
-		printf("Error\n");
+		printf("File didn't ended\n");
 		return 1;
 	}
 
     fclose(arq);
-
-
     printTree(syntaxTree);
+}
 
+
+int main(int argc, char *argv[]){
+    FILE *dest = stdout;
+    if(argc == 1) {
+        printf("usage: %s rules_file token_file [output_file]\n", argv[0]);
+        return 0;
+    }
+    if(argc > 3) {
+        dest = fopen(argv[3], "w");
+        if(dest == NULL) {
+            printf("error while opening file %s\n", argv[2]);
+            return 2;
+        }
+    }
+
+    generateSyntaxTree(argv[1],argv[2]);
 }
